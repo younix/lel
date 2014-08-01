@@ -1,3 +1,4 @@
+/* See LICENSE file for copyright and license details. */
 #include <unistd.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -24,6 +25,23 @@ enum { NONE = 0, LOADED = 1, SCALED = 2, DRAWN = 4 };
 /* View mode. */
 enum { ASPECT = 0, FULL_ASPECT, FULL_STRETCH };
 
+struct img {
+	char *filename;
+	FILE *fp;
+	int state;
+	int width;
+	int height;
+	uint8_t *buf;
+	struct view {
+		int panxoffset;
+		int panyoffset;
+		float zoomfact;
+	} view;
+};
+
+static struct img *imgs;
+static struct img *cimg;
+static size_t nimgs;
 static int viewmode = ASPECT;
 static char *wintitle = APP_NAME;
 static XImage *ximg = NULL;
@@ -33,12 +51,11 @@ static Window win;
 static GC gc;
 static int screen, xfd;
 static int running = 1;
-static int imgstate = NONE;
-static int imgwidth, imgheight;
-static uint8_t *imgbuf;
 static int winx, winy, winwidth = 320, winheight = 240;
-static int panxoffset = 0, panyoffset = 0;
-static float zoomfact = 1.0, zoominc = 0.25;
+static float zoominc = 0.25;
+static int tflag;
+static int wflag;
+static int hflag;
 
 void
 die(const char *fmt, ...)
@@ -72,51 +89,68 @@ usage(void)
 }
 
 int
-if_open(FILE *f)
+if_open(struct img *img)
 {
 	uint8_t hdr[17];
 
-	if (fread(hdr, 1, strlen(HEADER_FORMAT), f) != strlen(HEADER_FORMAT))
+	if (img->state & LOADED)
+		return 0;
+
+	if (fread(hdr, 1, strlen(HEADER_FORMAT), img->fp) != strlen(HEADER_FORMAT))
 		return -1;
 
 	if(memcmp(hdr, "imagefile", 9))
 		return -1;
 
-	imgwidth = ntohl((hdr[9] << 0) | (hdr[10] << 8) | (hdr[11] << 16) | (hdr[12] << 24));
-	imgheight = ntohl((hdr[13] << 0) | (hdr[14] << 8) | (hdr[15] << 16) | (hdr[16] << 24));
-	if(imgwidth <= 0 || imgheight <= 0)
+	img->width = ntohl((hdr[9] << 0) | (hdr[10] << 8) | (hdr[11] << 16) | (hdr[12] << 24));
+	img->height = ntohl((hdr[13] << 0) | (hdr[14] << 8) | (hdr[15] << 16) | (hdr[16] << 24));
+	if(img->width <= 0 || img->height <= 0)
 		return -1;
+
+	if(!(img->buf = malloc(img->width * img->height * 4)))
+		die("can't malloc\n");
 
 	return 0;
 }
 
 int
-if_read(FILE *f)
+if_read(struct img *img)
 {
 	int i, j, off, row_len;
 	uint8_t *row;
 
-	row_len = imgwidth * strlen("RGBA");
-	if(!(row = malloc(row_len)))
-		return 1;
+	if (img->state & LOADED)
+		return 0;
 
-	for(off = 0, i = 0; i < imgheight; ++i) {
-		if(fread(row, 1, (size_t)row_len, f) != (size_t)row_len) {
+	row_len = img->width * strlen("RGBA");
+	if(!(row = malloc(row_len)))
+		return -1;
+
+	for(off = 0, i = 0; i < img->height; ++i) {
+		if(fread(row, 1, (size_t)row_len, img->fp) != (size_t)row_len) {
 			free(row);
 			die("unexpected EOF or row-skew at %d\n", i);
 		}
 		for(j = 0; j < row_len; j += 4, off += 4) {
-			imgbuf[off] = row[j];
-			imgbuf[off + 1] = row[j + 1];
-			imgbuf[off + 2] = row[j + 2];
-			imgbuf[off + 3] = row[j + 3];
+			img->buf[off] = row[j];
+			img->buf[off + 1] = row[j + 1];
+			img->buf[off + 2] = row[j + 2];
+			img->buf[off + 3] = row[j + 3];
 		}
 	}
 	free(row);
 
-	imgstate |= LOADED;
+	img->state |= LOADED;
 
 	return 0;
+}
+
+void
+if_close(struct img *img)
+{
+	img->state &= ~LOADED;
+	rewind(img->fp);
+	free(img->buf);
 }
 
 /* NOTE: will be removed later, for debugging alpha mask */
@@ -137,6 +171,58 @@ normalsize(char *newbuf)
 }
 #endif
 
+void
+loadimg(void)
+{
+	if(if_open(cimg))
+		die("can't open image (invalid format?)\n");
+	if(if_read(cimg))
+		die("can't read image\n");
+	if(!wflag)
+		winwidth = cimg->width;
+	if(!hflag)
+		winheight = cimg->height;
+	if(!tflag)
+		wintitle = cimg->filename;
+}
+
+void
+reloadimg(void)
+{
+	loadimg();
+	XResizeWindow(dpy, win, winwidth, winheight);
+	XStoreName(dpy, win, wintitle);
+	XFlush(dpy);
+}
+
+void
+nextimg(void)
+{
+	struct img *tmp = cimg;
+
+	cimg++;
+	if (cimg >= &imgs[nimgs])
+		cimg = &imgs[0];
+	if (tmp != cimg) {
+		if_close(tmp);
+		reloadimg();
+	}
+}
+
+void
+previmg(void)
+{
+	struct img *tmp = cimg;
+
+	cimg--;
+	if (cimg < &imgs[0])
+		cimg = &imgs[nimgs - 1];
+	if (tmp != cimg) {
+		if_close(tmp);
+		reloadimg();
+	}
+}
+
 /* scales imgbuf data to newbuf (ximg->data), nearest neighbour. */
 void
 scale(unsigned int width, unsigned int height, unsigned int bytesperline,
@@ -146,10 +232,10 @@ scale(unsigned int width, unsigned int height, unsigned int bytesperline,
 	unsigned int jdy, dx, bufx, x, y;
 
 	jdy = bytesperline / 4 - width;
-	dx = (imgwidth << 10) / width;
+	dx = (cimg->width << 10) / width;
 	for(y = 0; y < height; y++) {
-		bufx = imgwidth / width;
-		ibuf = &imgbuf[y * imgheight / height * imgwidth * 4];
+		bufx = cimg->width / width;
+		ibuf = &cimg->buf[y * cimg->height / height * cimg->width * 4];
 
 		for(x = 0; x < width; x++) {
 			*newbuf++ = (ibuf[(bufx >> 10)*4+2]);
@@ -195,17 +281,17 @@ scaleview(void)
 		ximage(winwidth, winheight);
 		break;
 	case FULL_ASPECT:
-		if(winwidth * imgheight > winheight * imgwidth)
-			ximage(imgwidth * winheight / imgheight, winheight);
+		if(winwidth * cimg->height > winheight * cimg->width)
+			ximage(cimg->width * winheight / cimg->height, winheight);
 		else
-			ximage(winwidth, imgheight * winwidth / imgwidth);
+			ximage(winwidth, cimg->height * winwidth / cimg->width);
 		break;
 	case ASPECT:
 	default:
-		ximage(imgwidth * zoomfact, imgheight * zoomfact);
+		ximage(cimg->width * cimg->view.zoomfact, cimg->height * cimg->view.zoomfact);
 		break;
 	}
-	imgstate |= SCALED;
+	cimg->state |= SCALED;
 }
 
 void
@@ -218,8 +304,8 @@ draw(void)
 		xoffset = (winwidth - ximg->width) / 2;
 		yoffset = (winheight - ximg->height) / 2;
 		/* pan offset */
-		xoffset -= panxoffset;
-		yoffset -= panyoffset;
+		xoffset -= cimg->view.panxoffset;
+		yoffset -= cimg->view.panyoffset;
 	}
 	XSetForeground(dpy, gc, BlackPixel(dpy, 0));
 	XFillRectangle(dpy, xpix, gc, 0, 0, winwidth, winheight);
@@ -227,17 +313,17 @@ draw(void)
 	XCopyArea(dpy, xpix, win, gc, 0, 0, winwidth, winheight, 0, 0);
 
 	XFlush(dpy);
-	imgstate |= DRAWN;
+	cimg->state |= DRAWN;
 }
 
 void
 update(void)
 {
-	if(!(imgstate & LOADED))
+	if(!(cimg->state & LOADED))
 		return;
-	if(!(imgstate & SCALED))
+	if(!(cimg->state & SCALED))
 		scaleview();
-	if(!(imgstate & DRAWN))
+	if(!(cimg->state & DRAWN))
 		draw();
 }
 
@@ -247,36 +333,36 @@ setview(int mode)
 	if(viewmode == mode)
 		return;
 	viewmode = mode;
-	imgstate &= ~(DRAWN | SCALED);
+	cimg->state &= ~(DRAWN | SCALED);
 	update();
 }
 
 void
 pan(int x, int y)
 {
-	panxoffset -= x;
-	panyoffset -= y;
-	imgstate &= ~(DRAWN | SCALED);
+	cimg->view.panxoffset -= x;
+	cimg->view.panyoffset -= y;
+	cimg->state &= ~(DRAWN | SCALED);
 	update();
 }
 
 void
 inczoom(float f)
 {
-	if((zoomfact + f) <= 0)
+	if((cimg->view.zoomfact + f) <= 0)
 		return;
-	zoomfact += f;
-	imgstate &= ~(DRAWN | SCALED);
+	cimg->view.zoomfact += f;
+	cimg->state &= ~(DRAWN | SCALED);
 	update();
 }
 
 void
 zoom(float f)
 {
-	if(f == zoomfact)
+	if(f == cimg->view.zoomfact)
 		return;
-	zoomfact = f;
-	imgstate &= ~(DRAWN | SCALED);
+	cimg->view.zoomfact = f;
+	cimg->state &= ~(DRAWN | SCALED);
 	update();
 }
 
@@ -352,9 +438,19 @@ keypress(XEvent *ev)
 		zoom(1.0);
 		setview(ASPECT); /* fallthrough */
 	case XK_r:
-		panxoffset = 0;
-		panyoffset = 0;
-		imgstate &= ~(DRAWN | SCALED);
+		cimg->view.panxoffset = 0;
+		cimg->view.panyoffset = 0;
+		cimg->state &= ~(DRAWN | SCALED);
+		update();
+		break;
+	case XK_n:
+		nextimg();
+		cimg->state &= ~(DRAWN | SCALED);
+		update();
+		break;
+	case XK_p:
+		previmg();
+		cimg->state &= ~(DRAWN | SCALED);
 		update();
 		break;
 	}
@@ -377,11 +473,11 @@ handleevent(XEvent *ev)
 		if(winwidth != ev->xconfigure.width || winheight != ev->xconfigure.height) {
 			winwidth = ev->xconfigure.width;
 			winheight = ev->xconfigure.height;
-			imgstate &= ~(SCALED);
+			cimg->state &= ~(SCALED);
 		}
 		break;
 	case Expose:
-		imgstate &= ~(DRAWN);
+		cimg->state &= ~(DRAWN);
 		update();
 		break;
 	case KeyPress:
@@ -421,18 +517,14 @@ run(void)
 {
 	XEvent ev;
 
-	while(running && !XNextEvent(dpy, &ev)) {
+	while(running && !XNextEvent(dpy, &ev))
 		handleevent(&ev);
-	}
 }
 
 int
 main(int argc, char *argv[]) {
-	char *filename = "";
-	FILE *fp = NULL;
-	int tflag = 0;
-	int wflag = 0;
-	int hflag = 0;
+	FILE *fp;
+	int i, j;
 
 	ARGBEGIN {
 	case 'a':
@@ -466,44 +558,38 @@ main(int argc, char *argv[]) {
 		break;
 	} ARGEND;
 
-	if(argc >= 1) {
-		filename = argv[0];
-		if(!(fp = fopen(filename, "rb"))) {
-			die("can't read %s:", filename);
-			return EXIT_FAILURE;
-		}
+	if(argc == 0) {
+		imgs = calloc(1, sizeof(*imgs));
+		if (!imgs)
+			die("can't calloc\n");
+		nimgs = 1;
+		imgs[0].filename = "<stdin>";
+		imgs[0].fp = stdin;
+		imgs[0].view.zoomfact = 1.0;
 	} else {
-		filename = "<stdin>";
-		fp = stdin;
+		imgs = calloc(argc, sizeof(*imgs));
+		if(!imgs)
+			die("can't calloc\n");
+		for(i = 0, j = 0; j < argc; j++) {
+			fp = fopen(argv[j], "rb");
+			if (!fp) {
+				fprintf(stderr, "can't open %s\n", argv[j]);
+				continue;
+			}
+			imgs[i].filename = argv[j];
+			imgs[i].fp = fp;
+			imgs[i].view.zoomfact = 1.0;
+			i++;
+		}
+		if (i == 0)
+			return EXIT_FAILURE;
+		nimgs = i;
 	}
-	if(!tflag)
-		wintitle = filename;
+	cimg = imgs;
 
-	if(if_open(fp))
-		die("can't open image (invalid format?)\n");
-	if(!(imgbuf = malloc((imgwidth) * (imgheight) * 4)))
-		die("can't malloc\n");
-	if_read(fp);
-
-	if(!wflag)
-		winwidth = imgwidth;
-	if(!hflag)
-		winheight = imgheight;
-
+	loadimg();
 	setup();
 	run();
-
-	if(fp && fp != stdin)
-		fclose(fp);
-
-	free(imgbuf);
-
-	if(ximg)
-		XDestroyImage(ximg);
-	if(xpix)
-		XFreePixmap(dpy, xpix);
-	if(dpy)
-		XCloseDisplay(dpy);
 
 	return EXIT_SUCCESS;
 }

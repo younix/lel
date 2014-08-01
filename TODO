@@ -5,7 +5,6 @@
 [ ] enter key or some other key should print the current filename to stdout.
 [ ] for pictures which use an alpha mask use a checked pattern, similar to:
     http://www.modejong.com/blog/Media/Ghost_TransparentBG_400x300.jpg
-[ ] support multiple filenames as arguments, use hotkeys to switch image.
 [ ] zooming
 	[ ] improve performance (cull only the visible part?), use XGetImage() ?
 	[ ] improve zoomfact "steps".
