@@ -51,7 +51,8 @@ static Window win;
 static GC gc;
 static int screen, xfd;
 static int running = 1;
-static int winx, winy, winwidth = 320, winheight = 240;
+static int winwidth = 0, winheight = 0;
+static int winx, winy, reqwinwidth = 320, reqwinheight = 240;
 static float zoominc = 0.25;
 static int tflag;
 static int wflag;
@@ -179,9 +180,9 @@ loadimg(void)
 	if(if_read(cimg))
 		die("can't read image\n");
 	if(!wflag)
-		winwidth = cimg->width;
+		reqwinwidth = cimg->width;
 	if(!hflag)
-		winheight = cimg->height;
+		reqwinheight = cimg->height;
 	if(!tflag)
 		wintitle = cimg->filename;
 }
@@ -190,7 +191,7 @@ void
 reloadimg(void)
 {
 	loadimg();
-	XResizeWindow(dpy, win, winwidth, winheight);
+	XResizeWindow(dpy, win, reqwinwidth, reqwinheight);
 	XStoreName(dpy, win, wintitle);
 	XFlush(dpy);
 }
@@ -499,7 +500,7 @@ setup(void)
 	xfd = ConnectionNumber(dpy);
 	screen = DefaultScreen(dpy);
 
-	win = XCreateWindow(dpy, DefaultRootWindow(dpy), winx, winy, winwidth, winheight, 0,
+	win = XCreateWindow(dpy, DefaultRootWindow(dpy), winx, winy, reqwinwidth, reqwinheight, 0,
 	                    DefaultDepth(dpy, screen), InputOutput,
 	                    CopyFromParent, 0, NULL);
 	gc = XCreateGC(dpy, win, 0, NULL);
@@ -535,7 +536,7 @@ main(int argc, char *argv[]) {
 		break;
 	case 'h':
 		hflag = 1;
-		if(!(winheight = atoi(EARGF(usage()))))
+		if(!(reqwinheight = atoi(EARGF(usage()))))
 			usage();
 		break;
 	case 't':
@@ -544,7 +545,7 @@ main(int argc, char *argv[]) {
 		break;
 	case 'w':
 		wflag = 1;
-		if(!(winwidth = atoi(EARGF(usage()))))
+		if(!(reqwinwidth = atoi(EARGF(usage()))))
 			usage();
 		break;
 	case 'x':
