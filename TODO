@@ -1,0 +1,25 @@
+[ ] bugs:
+	[ ] alpha mask with png2if | lel is always black?
+	[ ] resizing slow (might be a dwm issue).
+[ ] use XSHM again?
+[ ] enter key or some other key should print the current filename to stdout.
+[ ] for pictures which use an alpha mask use a checked pattern, similar to:
+    http://www.modejong.com/blog/Media/Ghost_TransparentBG_400x300.jpg
+[ ] support multiple filenames as arguments, use hotkeys to switch image.
+[ ] zooming
+	[ ] improve performance (cull only the visible part?), use XGetImage() ?
+	[ ] improve zoomfact "steps".
+[ ] mouse support.
+	[ ] mouse move panning.
+	[x] mouse scroll zooming.
+[ ] scale
+	[ ] use XPutPixel for byte-order safety ?
+[ ] improve README.
+[ ] write man page.
+	[ ] lel.1
+	[ ] lel-open.1
+[?] improve key lookup code.
+[?] project name change.
+[?] add support for more color depths (< 24).
+[?] add command mode or shell support for viewing
+    images in a directory (output key to stdout might be enough?).

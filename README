@@ -1,0 +1,41 @@
+lel - simple X11 image viewer
+=============================
+
+lel is a simple X11 image viewer. It reads image data (in the "imagefile"
+format from stdout) and displays it in a X11 window.
+
+
+Features
+--------
+
+- view modes:
+  - original image size.
+  - stretch image to window, keep aspect ratio.
+  - stretch image to window, don't keep aspect ratio.
+- keybinds
+- zooming
+- panning
+
+
+Dependencies
+------------
+
+- libX11
+
+
+Optional (run-time) dependencies
+--------------------------------
+- imagefile: http://git.2f30.org/imagefile/
+
+
+Compile:
+--------
+
+$ make
+# make install
+
+
+Known issues:
+-------------
+
+See TODO file.
