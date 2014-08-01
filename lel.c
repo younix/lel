@@ -160,12 +160,12 @@ normalsize(char *newbuf)
 {
 	unsigned int x, y, soff = 0, doff = 0;
 
-	for(y = 0; y < imgheight; y++) {
-		for(x = 0; x < imgwidth; x++, soff += 4, doff += 4) {
-			newbuf[doff+0] = imgbuf[soff+2];
-			newbuf[doff+1] = imgbuf[soff+1];
-			newbuf[doff+2] = imgbuf[soff+0];
-			newbuf[doff+3] = imgbuf[soff+3];
+	for(y = 0; y < cimg->height; y++) {
+		for(x = 0; x < cimg->width; x++, soff += 4, doff += 4) {
+			newbuf[doff+0] = cimg->buf[soff+2];
+			newbuf[doff+1] = cimg->buf[soff+1];
+			newbuf[doff+2] = cimg->buf[soff+0];
+			newbuf[doff+3] = cimg->buf[soff+3];
 		}
 	}
 }
