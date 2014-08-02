@@ -2,7 +2,7 @@
 	[ ] alpha mask with png2if | lel is always black?
 	[ ] resizing slow (might be a dwm issue).
 [ ] use XSHM again?
-[ ] enter key or some other key should print the current filename to stdout.
+[x] enter key or some other key should print the current filename to stdout.
 [ ] for pictures which use an alpha mask use a checked pattern, similar to:
     http://www.modejong.com/blog/Media/Ghost_TransparentBG_400x300.jpg
 [ ] improve lel-open to support multiple files.

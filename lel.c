@@ -381,6 +381,12 @@ buttonpress(XEvent *ev)
 }
 
 void
+printname(void)
+{
+	printf("%s\n", cimg->filename);
+}
+
+void
 keypress(XEvent *ev)
 {
 	KeySym key;
@@ -412,6 +418,9 @@ keypress(XEvent *ev)
 		break;
 	case XK_o:
 		setview(ASPECT);
+		break;
+	case XK_Return:
+		printname();
 		break;
 	case XK_f:
 		setview(FULL_STRETCH);
