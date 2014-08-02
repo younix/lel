@@ -2,6 +2,7 @@
 filename="$1"
 shift
 ext=$(basename "$filename" | grep -o '\..[^\.]*$')
+convert=""
 
 if test x"$ext" = x".jpg"; then
 	convert="jpg2if"
@@ -11,10 +12,14 @@ elif test x"$ext" = x".gif"; then
 	convert="gif2if"
 elif test x"$ext" = x".if"; then
 	convert="cat"
+elif test x"$ext" = x".bz2"; then
+	convert="bzip2 -dc"
+elif test x"$ext" = x".gz"; then
+	convert="gzip -dc"
 else
 	echo "unknown extension \"$ext\"" >&2
 fi
 
 if test x"$convert" != x""; then
-	"$convert" < "$filename" | lel -t "$filename" "$@"
+	$convert < "$filename" | lel -t "$filename" "$@"
 fi
