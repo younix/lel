@@ -109,7 +109,7 @@ if_open(struct img *img)
 		return -1;
 
 	if(!(img->buf = malloc(img->width * img->height * 4)))
-		die("can't malloc\n");
+		die("malloc:");
 
 	return 0;
 }
@@ -270,7 +270,7 @@ ximage(unsigned int newwidth, unsigned int newheight)
 		scale(ximg->width, ximg->height, ximg->bytes_per_line, ximg->data);
 		XInitImage(ximg);
 	} else {
-		die("This program does not yet support display depths < 24.\n");
+		die("this program does not yet support display depths < 24\n");
 	}
 }
 
@@ -505,7 +505,7 @@ setup(void)
 	XClassHint class = { APP_NAME, APP_NAME };
 
 	if(!(dpy = XOpenDisplay(NULL)))
-		die("Can't open X display.\n");
+		die("can't open X display\n");
 	xfd = ConnectionNumber(dpy);
 	screen = DefaultScreen(dpy);
 
@@ -571,7 +571,7 @@ main(int argc, char *argv[]) {
 	if(argc == 0) {
 		imgs = calloc(1, sizeof(*imgs));
 		if (!imgs)
-			die("can't calloc\n");
+			die("calloc:");
 		nimgs = 1;
 		imgs[0].filename = "<stdin>";
 		imgs[0].fp = stdin;
@@ -579,11 +579,12 @@ main(int argc, char *argv[]) {
 	} else {
 		imgs = calloc(argc, sizeof(*imgs));
 		if(!imgs)
-			die("can't calloc\n");
+			die("calloc:");
 		for(i = 0, j = 0; j < argc; j++) {
 			fp = fopen(argv[j], "rb");
 			if (!fp) {
-				fprintf(stderr, "can't open %s\n", argv[j]);
+				fprintf(stderr, "can't open %s: %s\n", argv[j],
+					strerror(errno));
 				continue;
 			}
 			imgs[i].filename = argv[j];
