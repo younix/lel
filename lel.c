@@ -44,11 +44,14 @@ static struct img *cimg;
 static size_t nimgs;
 static int viewmode = ASPECT;
 static char *wintitle = APP_NAME;
+static char *bgcolor = "#000000";
 static XImage *ximg = NULL;
 static Drawable xpix = 0;
 static Display *dpy = NULL;
+static Colormap cmap;
 static Window win;
 static GC gc;
+static XColor bg;
 static int screen, xfd;
 static int running = 1;
 static int winwidth = 0, winheight = 0;
@@ -231,6 +234,7 @@ scale(unsigned int width, unsigned int height, unsigned int bytesperline,
 {
 	unsigned char *ibuf;
 	unsigned int jdy, dx, bufx, x, y;
+	float a = 0.0f;
 
 	jdy = bytesperline / 4 - width;
 	dx = (cimg->width << 10) / width;
@@ -239,9 +243,10 @@ scale(unsigned int width, unsigned int height, unsigned int bytesperline,
 		ibuf = &cimg->buf[y * cimg->height / height * cimg->width * 4];
 
 		for(x = 0; x < width; x++) {
-			*newbuf++ = (ibuf[(bufx >> 10)*4+2]);
-			*newbuf++ = (ibuf[(bufx >> 10)*4+1]);
-			*newbuf++ = (ibuf[(bufx >> 10)*4+0]);
+			a = (ibuf[(bufx >> 10)*4+3]) / 255.0f;
+			*newbuf++ = (ibuf[(bufx >> 10)*4+2] * a) + (bg.blue * (1 - a));
+			*newbuf++ = (ibuf[(bufx >> 10)*4+1] * a) + (bg.green * (1 - a));
+			*newbuf++ = (ibuf[(bufx >> 10)*4+0] * a) + (bg.red * (1 - a));
 			newbuf++;
 			bufx += dx;
 		}
@@ -308,7 +313,7 @@ draw(void)
 		xoffset -= cimg->view.panxoffset;
 		yoffset -= cimg->view.panyoffset;
 	}
-	XSetForeground(dpy, gc, BlackPixel(dpy, 0));
+	XSetForeground(dpy, gc, bg.pixel);
 	XFillRectangle(dpy, xpix, gc, 0, 0, winwidth, winheight);
 	XPutImage(dpy, xpix, gc, ximg, 0, 0, xoffset, yoffset, ximg->width, ximg->height);
 	XCopyArea(dpy, xpix, win, gc, 0, 0, winwidth, winheight, 0, 0);
@@ -513,7 +518,9 @@ setup(void)
 	                    DefaultDepth(dpy, screen), InputOutput,
 	                    CopyFromParent, 0, NULL);
 	gc = XCreateGC(dpy, win, 0, NULL);
-
+	cmap = DefaultColormap(dpy, screen);
+	if(!XAllocNamedColor(dpy, cmap, bgcolor, &bg, &bg))
+		die("cannot allocate color\n");
 	XStoreName(dpy, win, wintitle);
 	XSelectInput(dpy, win, StructureNotifyMask | ExposureMask | KeyPressMask |
 	                       ButtonPressMask);
