@@ -58,7 +58,7 @@ static int tflag;
 static int wflag;
 static int hflag;
 
-void
+static void
 die(const char *fmt, ...)
 {
 	va_list ap;
@@ -74,7 +74,7 @@ die(const char *fmt, ...)
 	exit(EXIT_FAILURE);
 }
 
-void
+static void
 usage(void)
 {
 	die("%s", APP_NAME " " VERSION " - (c) 2014 " APP_NAME " engineers\n\n"
@@ -89,7 +89,7 @@ usage(void)
 	      "    -v            Print version and exit\n");
 }
 
-int
+static int
 if_open(struct img *img)
 {
 	uint8_t hdr[17];
@@ -114,7 +114,7 @@ if_open(struct img *img)
 	return 0;
 }
 
-int
+static int
 if_read(struct img *img)
 {
 	int i, j, off, row_len;
@@ -146,7 +146,7 @@ if_read(struct img *img)
 	return 0;
 }
 
-void
+static void
 if_close(struct img *img)
 {
 	img->state &= ~LOADED;
@@ -156,7 +156,7 @@ if_close(struct img *img)
 
 /* NOTE: will be removed later, for debugging alpha mask */
 #if 0
-void
+static void
 normalsize(char *newbuf)
 {
 	unsigned int x, y, soff = 0, doff = 0;
@@ -172,7 +172,7 @@ normalsize(char *newbuf)
 }
 #endif
 
-void
+static void
 loadimg(void)
 {
 	if(if_open(cimg))
@@ -187,7 +187,7 @@ loadimg(void)
 		wintitle = cimg->filename;
 }
 
-void
+static void
 reloadimg(void)
 {
 	loadimg();
@@ -196,7 +196,7 @@ reloadimg(void)
 	XFlush(dpy);
 }
 
-void
+static void
 nextimg(void)
 {
 	struct img *tmp = cimg;
@@ -210,7 +210,7 @@ nextimg(void)
 	}
 }
 
-void
+static void
 previmg(void)
 {
 	struct img *tmp = cimg;
@@ -225,7 +225,7 @@ previmg(void)
 }
 
 /* scales imgbuf data to newbuf (ximg->data), nearest neighbour. */
-void
+static void
 scale(unsigned int width, unsigned int height, unsigned int bytesperline,
 	char *newbuf)
 {
@@ -249,7 +249,7 @@ scale(unsigned int width, unsigned int height, unsigned int bytesperline,
 	}
 }
 
-void
+static void
 ximage(unsigned int newwidth, unsigned int newheight)
 {
 	int depth;
@@ -274,7 +274,7 @@ ximage(unsigned int newwidth, unsigned int newheight)
 	}
 }
 
-void
+static void
 scaleview(void)
 {
 	switch(viewmode) {
@@ -295,7 +295,7 @@ scaleview(void)
 	cimg->state |= SCALED;
 }
 
-void
+static void
 draw(void)
 {
 	int xoffset = 0, yoffset = 0;
@@ -317,7 +317,7 @@ draw(void)
 	cimg->state |= DRAWN;
 }
 
-void
+static void
 update(void)
 {
 	if(!(cimg->state & LOADED))
@@ -328,7 +328,7 @@ update(void)
 		draw();
 }
 
-void
+static void
 setview(int mode)
 {
 	if(viewmode == mode)
@@ -338,7 +338,7 @@ setview(int mode)
 	update();
 }
 
-void
+static void
 pan(int x, int y)
 {
 	cimg->view.panxoffset -= x;
@@ -347,7 +347,7 @@ pan(int x, int y)
 	update();
 }
 
-void
+static void
 inczoom(float f)
 {
 	if((cimg->view.zoomfact + f) <= 0)
@@ -357,7 +357,7 @@ inczoom(float f)
 	update();
 }
 
-void
+static void
 zoom(float f)
 {
 	if(f == cimg->view.zoomfact)
@@ -367,7 +367,7 @@ zoom(float f)
 	update();
 }
 
-void
+static void
 buttonpress(XEvent *ev)
 {
 	switch(ev->xbutton.button) {
@@ -380,13 +380,13 @@ buttonpress(XEvent *ev)
 	}
 }
 
-void
+static void
 printname(void)
 {
 	printf("%s\n", cimg->filename);
 }
 
-void
+static void
 keypress(XEvent *ev)
 {
 	KeySym key;
@@ -466,7 +466,7 @@ keypress(XEvent *ev)
 	}
 }
 
-void
+static void
 handleevent(XEvent *ev)
 {
 	XWindowAttributes attr;
@@ -499,7 +499,7 @@ handleevent(XEvent *ev)
 	}
 }
 
-void
+static void
 setup(void)
 {
 	XClassHint class = { APP_NAME, APP_NAME };
@@ -522,7 +522,7 @@ setup(void)
 	XFlush(dpy);
 }
 
-void
+static void
 run(void)
 {
 	XEvent ev;
