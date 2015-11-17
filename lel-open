@@ -5,11 +5,11 @@ ext=$(basename "$filename" | grep -o '\..[^\.]*$')
 convert=""
 
 if test x"$ext" = x".jpg"; then
-	convert="jpg2if"
+	convert="jpg2ff"
 elif test x"$ext" = x".png"; then
-	convert="png2if"
+	convert="png2ff"
 elif test x"$ext" = x".gif"; then
-	convert="gif2if"
+	convert="gif2ff"
 elif test x"$ext" = x".if"; then
 	convert="cat"
 elif test x"$ext" = x".bz2"; then
