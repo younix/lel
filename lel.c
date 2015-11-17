@@ -1,14 +1,15 @@
 /* See LICENSE file for copyright and license details. */
+#include <arpa/inet.h>
+
+#include <errno.h>
 #include <unistd.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <signal.h>
 #include <time.h>
-#include <arpa/inet.h>
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -70,11 +71,11 @@ die(const char *fmt, ...)
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 
-	if(fmt[0] && fmt[strlen(fmt)-1] == ':') {
+	if (fmt[0] && fmt[strlen(fmt) - 1] == ':') {
 		fputc(' ', stderr);
 		perror(NULL);
 	}
-	exit(EXIT_FAILURE);
+	exit(1);
 }
 
 static void
@@ -103,15 +104,15 @@ ff_open(struct img *img)
 	if (fread(hdr, 1, strlen(HEADER_FORMAT), img->fp) != strlen(HEADER_FORMAT))
 		return -1;
 
-	if(memcmp(hdr, "farbfeld", 8))
+	if (memcmp(hdr, "farbfeld", 8))
 		return -1;
 
 	img->width = ntohl((hdr[8] << 0) | (hdr[9] << 8) | (hdr[10] << 16) | (hdr[11] << 24));
 	img->height = ntohl((hdr[12] << 0) | (hdr[13] << 8) | (hdr[14] << 16) | (hdr[15] << 24));
-	if(img->width <= 0 || img->height <= 0)
+	if (img->width <= 0 || img->height <= 0)
 		return -1;
 
-	if(!(img->buf = malloc(img->width * img->height * 4)))
+	if (!(img->buf = malloc(img->width * img->height * 4)))
 		die("malloc:");
 
 	return 0;
@@ -127,15 +128,15 @@ ff_read(struct img *img)
 		return 0;
 
 	row_len = img->width * strlen("RRGGBBAA");
-	if(!(row = malloc(row_len)))
+	if (!(row = malloc(row_len)))
 		return -1;
 
-	for(off = 0, i = 0; i < img->height; ++i) {
-		if(fread(row, 1, (size_t)row_len, img->fp) != (size_t)row_len) {
+	for (off = 0, i = 0; i < img->height; ++i) {
+		if (fread(row, 1, (size_t)row_len, img->fp) != (size_t)row_len) {
 			free(row);
 			die("unexpected EOF or row-skew at %d\n", i);
 		}
-		for(j = 0; j < row_len / 2; j += 4, off += 4) {
+		for (j = 0; j < row_len / 2; j += 4, off += 4) {
 			img->buf[off]     = row[j];
 			img->buf[off + 1] = row[j + 1];
 			img->buf[off + 2] = row[j + 2];
@@ -164,8 +165,8 @@ normalsize(char *newbuf)
 {
 	unsigned int x, y, soff = 0, doff = 0;
 
-	for(y = 0; y < cimg->height; y++) {
-		for(x = 0; x < cimg->width; x++, soff += 4, doff += 4) {
+	for (y = 0; y < cimg->height; y++) {
+		for (x = 0; x < cimg->width; x++, soff += 4, doff += 4) {
 			newbuf[doff+0] = cimg->buf[soff+2];
 			newbuf[doff+1] = cimg->buf[soff+1];
 			newbuf[doff+2] = cimg->buf[soff+0];
@@ -178,15 +179,15 @@ normalsize(char *newbuf)
 static void
 loadimg(void)
 {
-	if(ff_open(cimg))
+	if (ff_open(cimg))
 		die("can't open image (invalid format?)\n");
-	if(ff_read(cimg))
+	if (ff_read(cimg))
 		die("can't read image\n");
-	if(!wflag)
+	if (!wflag)
 		reqwinwidth = cimg->width;
-	if(!hflag)
+	if (!hflag)
 		reqwinheight = cimg->height;
-	if(!tflag)
+	if (!tflag)
 		wintitle = cimg->filename;
 }
 
@@ -238,11 +239,11 @@ scale(unsigned int width, unsigned int height, unsigned int bytesperline,
 
 	jdy = bytesperline / 4 - width;
 	dx = (cimg->width << 10) / width;
-	for(y = 0; y < height; y++) {
+	for (y = 0; y < height; y++) {
 		bufx = cimg->width / width;
 		ibuf = &cimg->buf[y * cimg->height / height * cimg->width * 4];
 
-		for(x = 0; x < width; x++) {
+		for (x = 0; x < width; x++) {
 			a = (ibuf[(bufx >> 10)*4+3]) / 255.0f;
 			*newbuf++ = (ibuf[(bufx >> 10)*4+2] * a) + (bg.blue * (1 - a));
 			*newbuf++ = (ibuf[(bufx >> 10)*4+1] * a) + (bg.green * (1 - a));
@@ -260,13 +261,13 @@ ximage(unsigned int newwidth, unsigned int newheight)
 	int depth;
 
 	/* destroy previous image */
-	if(ximg) {
+	if (ximg) {
 		XDestroyImage(ximg);
 		ximg = NULL;
 	}
 	depth = DefaultDepth(dpy, screen);
-	if(depth >= 24) {
-		if(xpix)
+	if (depth >= 24) {
+		if (xpix)
 			XFreePixmap(dpy, xpix);
 		xpix = XCreatePixmap(dpy, win, winwidth, winheight, depth);
 		ximg = XCreateImage(dpy, CopyFromParent, depth,	ZPixmap, 0,
@@ -287,7 +288,7 @@ scaleview(void)
 		ximage(winwidth, winheight);
 		break;
 	case FULL_ASPECT:
-		if(winwidth * cimg->height > winheight * cimg->width)
+		if (winwidth * cimg->height > winheight * cimg->width)
 			ximage(cimg->width * winheight / cimg->height, winheight);
 		else
 			ximage(winwidth, cimg->height * winwidth / cimg->width);
@@ -305,7 +306,7 @@ draw(void)
 {
 	int xoffset = 0, yoffset = 0;
 
-	if(viewmode != FULL_STRETCH) {
+	if (viewmode != FULL_STRETCH) {
 		/* center vertical, horizontal */
 		xoffset = (winwidth - ximg->width) / 2;
 		yoffset = (winheight - ximg->height) / 2;
@@ -325,18 +326,18 @@ draw(void)
 static void
 update(void)
 {
-	if(!(cimg->state & LOADED))
+	if (!(cimg->state & LOADED))
 		return;
-	if(!(cimg->state & SCALED))
+	if (!(cimg->state & SCALED))
 		scaleview();
-	if(!(cimg->state & DRAWN))
+	if (!(cimg->state & DRAWN))
 		draw();
 }
 
 static void
 setview(int mode)
 {
-	if(viewmode == mode)
+	if (viewmode == mode)
 		return;
 	viewmode = mode;
 	cimg->state &= ~(DRAWN | SCALED);
@@ -355,7 +356,7 @@ pan(int x, int y)
 static void
 inczoom(float f)
 {
-	if((cimg->view.zoomfact + f) <= 0)
+	if ((cimg->view.zoomfact + f) <= 0)
 		return;
 	cimg->view.zoomfact += f;
 	cimg->state &= ~(DRAWN | SCALED);
@@ -365,7 +366,7 @@ inczoom(float f)
 static void
 zoom(float f)
 {
-	if(f == cimg->view.zoomfact)
+	if (f == cimg->view.zoomfact)
 		return;
 	cimg->view.zoomfact = f;
 	cimg->state &= ~(DRAWN | SCALED);
@@ -485,7 +486,7 @@ handleevent(XEvent *ev)
 		}
 		break;
 	case ConfigureNotify:
-		if(winwidth != ev->xconfigure.width || winheight != ev->xconfigure.height) {
+		if (winwidth != ev->xconfigure.width || winheight != ev->xconfigure.height) {
 			winwidth = ev->xconfigure.width;
 			winheight = ev->xconfigure.height;
 			cimg->state &= ~(SCALED);
@@ -509,7 +510,7 @@ setup(void)
 {
 	XClassHint class = { APP_NAME, APP_NAME };
 
-	if(!(dpy = XOpenDisplay(NULL)))
+	if (!(dpy = XOpenDisplay(NULL)))
 		die("can't open X display\n");
 	xfd = ConnectionNumber(dpy);
 	screen = DefaultScreen(dpy);
@@ -519,7 +520,7 @@ setup(void)
 	                    CopyFromParent, 0, NULL);
 	gc = XCreateGC(dpy, win, 0, NULL);
 	cmap = DefaultColormap(dpy, screen);
-	if(!XAllocNamedColor(dpy, cmap, bgcolor, &bg, &bg))
+	if (!XAllocNamedColor(dpy, cmap, bgcolor, &bg, &bg))
 		die("cannot allocate color\n");
 	XStoreName(dpy, win, wintitle);
 	XSelectInput(dpy, win, StructureNotifyMask | ExposureMask | KeyPressMask |
@@ -534,7 +535,7 @@ run(void)
 {
 	XEvent ev;
 
-	while(running && !XNextEvent(dpy, &ev))
+	while (running && !XNextEvent(dpy, &ev))
 		handleevent(&ev);
 }
 
@@ -552,7 +553,7 @@ main(int argc, char *argv[]) {
 		break;
 	case 'h':
 		hflag = 1;
-		if(!(reqwinheight = atoi(EARGF(usage()))))
+		if (!(reqwinheight = atoi(EARGF(usage()))))
 			usage();
 		break;
 	case 't':
@@ -561,7 +562,7 @@ main(int argc, char *argv[]) {
 		break;
 	case 'w':
 		wflag = 1;
-		if(!(reqwinwidth = atoi(EARGF(usage()))))
+		if (!(reqwinwidth = atoi(EARGF(usage()))))
 			usage();
 		break;
 	case 'x':
@@ -575,7 +576,7 @@ main(int argc, char *argv[]) {
 		break;
 	} ARGEND;
 
-	if(argc == 0) {
+	if (!argc) {
 		imgs = calloc(1, sizeof(*imgs));
 		if (!imgs)
 			die("calloc:");
@@ -585,9 +586,9 @@ main(int argc, char *argv[]) {
 		imgs[0].view.zoomfact = 1.0;
 	} else {
 		imgs = calloc(argc, sizeof(*imgs));
-		if(!imgs)
+		if (!imgs)
 			die("calloc:");
-		for(i = 0, j = 0; j < argc; j++) {
+		for (i = 0, j = 0; j < argc; j++) {
 			fp = fopen(argv[j], "rb");
 			if (!fp) {
 				fprintf(stderr, "can't open %s: %s\n", argv[j],
@@ -599,8 +600,8 @@ main(int argc, char *argv[]) {
 			imgs[i].view.zoomfact = 1.0;
 			i++;
 		}
-		if (i == 0)
-			return EXIT_FAILURE;
+		if (!i)
+			return 1;
 		nimgs = i;
 	}
 	cimg = imgs;
@@ -609,5 +610,5 @@ main(int argc, char *argv[]) {
 	setup();
 	run();
 
-	return EXIT_SUCCESS;
+	return 0;
 }

@@ -9,6 +9,7 @@
 	[ ] use XPutPixel for byte-order safety ?
 [ ] improve README.
 [ ] write man page.
+	[ ] convert to mandoc.
 	[ ] lel.1
 	[ ] lel-open.1
 [?] for pictures which use an alpha mask use a checked pattern, similar to:
