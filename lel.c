@@ -18,7 +18,7 @@
 char *argv0;
 
 #define APP_NAME "lel"
-#define HEADER_FORMAT "imagefile########"
+#define HEADER_FORMAT "farbfeld########"
 
 /* Image status flags. */
 enum { NONE = 0, LOADED = 1, SCALED = 2, DRAWN = 4 };
@@ -93,7 +93,7 @@ usage(void)
 }
 
 static int
-if_open(struct img *img)
+ff_open(struct img *img)
 {
 	uint8_t hdr[17];
 
@@ -103,11 +103,11 @@ if_open(struct img *img)
 	if (fread(hdr, 1, strlen(HEADER_FORMAT), img->fp) != strlen(HEADER_FORMAT))
 		return -1;
 
-	if(memcmp(hdr, "imagefile", 9))
+	if(memcmp(hdr, "farbfeld", 8))
 		return -1;
 
-	img->width = ntohl((hdr[9] << 0) | (hdr[10] << 8) | (hdr[11] << 16) | (hdr[12] << 24));
-	img->height = ntohl((hdr[13] << 0) | (hdr[14] << 8) | (hdr[15] << 16) | (hdr[16] << 24));
+	img->width = ntohl((hdr[8] << 0) | (hdr[9] << 8) | (hdr[10] << 16) | (hdr[11] << 24));
+	img->height = ntohl((hdr[12] << 0) | (hdr[13] << 8) | (hdr[14] << 16) | (hdr[15] << 24));
 	if(img->width <= 0 || img->height <= 0)
 		return -1;
 
@@ -118,15 +118,15 @@ if_open(struct img *img)
 }
 
 static int
-if_read(struct img *img)
+ff_read(struct img *img)
 {
 	int i, j, off, row_len;
-	uint8_t *row;
+	uint16_t *row;
 
 	if (img->state & LOADED)
 		return 0;
 
-	row_len = img->width * strlen("RGBA");
+	row_len = img->width * strlen("RRGGBBAA");
 	if(!(row = malloc(row_len)))
 		return -1;
 
@@ -135,8 +135,8 @@ if_read(struct img *img)
 			free(row);
 			die("unexpected EOF or row-skew at %d\n", i);
 		}
-		for(j = 0; j < row_len; j += 4, off += 4) {
-			img->buf[off] = row[j];
+		for(j = 0; j < row_len / 2; j += 4, off += 4) {
+			img->buf[off]     = row[j];
 			img->buf[off + 1] = row[j + 1];
 			img->buf[off + 2] = row[j + 2];
 			img->buf[off + 3] = row[j + 3];
@@ -150,7 +150,7 @@ if_read(struct img *img)
 }
 
 static void
-if_close(struct img *img)
+ff_close(struct img *img)
 {
 	img->state &= ~LOADED;
 	rewind(img->fp);
@@ -178,9 +178,9 @@ normalsize(char *newbuf)
 static void
 loadimg(void)
 {
-	if(if_open(cimg))
+	if(ff_open(cimg))
 		die("can't open image (invalid format?)\n");
-	if(if_read(cimg))
+	if(ff_read(cimg))
 		die("can't read image\n");
 	if(!wflag)
 		reqwinwidth = cimg->width;
@@ -208,7 +208,7 @@ nextimg(void)
 	if (cimg >= &imgs[nimgs])
 		cimg = &imgs[0];
 	if (tmp != cimg) {
-		if_close(tmp);
+		ff_close(tmp);
 		reloadimg();
 	}
 }
@@ -222,7 +222,7 @@ previmg(void)
 	if (cimg < &imgs[0])
 		cimg = &imgs[nimgs - 1];
 	if (tmp != cimg) {
-		if_close(tmp);
+		ff_close(tmp);
 		reloadimg();
 	}
 }
