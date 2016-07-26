@@ -16,6 +16,8 @@ elif test x"$ext" = x".bz2"; then
 	convert="bzip2 -dc"
 elif test x"$ext" = x".gz"; then
 	convert="gzip -dc"
+elif test x"$ext" = x".xz"; then
+	convert="xz -dc"
 else
 	echo "unknown extension \"$ext\"" >&2
 fi
