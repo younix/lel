@@ -2,7 +2,6 @@
 #include <arpa/inet.h>
 
 #include <errno.h>
-#include <unistd.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -10,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -81,8 +81,8 @@ die(const char *fmt, ...)
 static void
 usage(void)
 {
-	die("%s", APP_NAME " " VERSION " - (c) 2014 " APP_NAME " engineers\n\n"
-	      "usage: " APP_NAME "[OPTIONS...] [FILE]\n"
+	die("%s", APP_NAME " " VERSION "\n\n"
+	      "usage: " APP_NAME " [OPTIONS...] [FILE]\n"
 	      "    -a            Full window, keep aspect ratio\n"
 	      "    -f            Full window, stretch (no aspect)\n"
 	      "    -w <w>        Window width\n"
