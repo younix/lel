@@ -272,7 +272,7 @@ ximage(unsigned int newwidth, unsigned int newheight)
 		xpix = XCreatePixmap(dpy, win, winwidth, winheight, depth);
 		ximg = XCreateImage(dpy, CopyFromParent, depth,	ZPixmap, 0,
 		                    NULL, newwidth, newheight, 32, 0);
-		ximg->data = malloc(ximg->bytes_per_line * ximg->height);
+		ximg->data = malloc((ximg->bytes_per_line + ximg->bitmap_pad) * ximg->height);
 		scale(ximg->width, ximg->height, ximg->bytes_per_line, ximg->data);
 		XInitImage(ximg);
 	} else {
